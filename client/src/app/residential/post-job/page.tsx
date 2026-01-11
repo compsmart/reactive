@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
@@ -83,7 +83,7 @@ const initialJobData: JobData = {
   photos: [],
 };
 
-export default function PostJobWizard() {
+function PostJobWizardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
@@ -1099,5 +1099,13 @@ export default function PostJobWizard() {
       </main>
       </div>
     </PublicLayout>
+  );
+}
+
+export default function PostJobWizard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <PostJobWizardContent />
+    </Suspense>
   );
 }

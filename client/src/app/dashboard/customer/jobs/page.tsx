@@ -348,9 +348,9 @@ export default function CustomerJobsPage() {
                                       {contractor.firstName} {contractor.lastName || ''}
                                     </p>
                                     <p className="text-sm text-slate-500">{contractor.email}</p>
-                                    {contractor.contractorProfile?.rating > 0 && (
+                                    {(contractor.contractorProfile?.rating ?? 0) > 0 && (
                                       <p className="text-sm text-amber-600">
-                                        ⭐ {contractor.contractorProfile.rating.toFixed(1)} rating
+                                        ⭐ {contractor.contractorProfile?.rating?.toFixed(1)} rating
                                       </p>
                                     )}
                                   </div>

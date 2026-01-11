@@ -153,8 +153,8 @@ export default function JobMatchingPage() {
                   {contractor.contractorProfile?.hourlyRate && (
                     <> • 💰 ${contractor.contractorProfile.hourlyRate}/hr</>
                   )}
-                  {contractor.contractorProfile?.rating > 0 && (
-                    <> • ⭐ {contractor.contractorProfile.rating.toFixed(1)}</>
+                  {(contractor.contractorProfile?.rating ?? 0) > 0 && (
+                    <> • ⭐ {contractor.contractorProfile?.rating?.toFixed(1)}</>
                   )}
                 </p>
                 <div className="flex flex-wrap gap-2 mt-2">

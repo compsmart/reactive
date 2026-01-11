@@ -158,9 +158,9 @@ export default function ContractorProfilePage() {
                     Pending Verification
                   </span>
                 )}
-                {profile?.contractorProfile?.rating > 0 && (
+                {(profile?.contractorProfile?.rating ?? 0) > 0 && (
                   <p className="mt-2 text-yellow-600">
-                    ⭐ {profile.contractorProfile.rating.toFixed(1)} rating
+                    ⭐ {profile?.contractorProfile?.rating?.toFixed(1)} rating
                   </p>
                 )}
               </div>

@@ -164,8 +164,8 @@ export default function ContractorsPage() {
                         {contractor.contractorProfile?.hourlyRate && (
                           <span>${contractor.contractorProfile.hourlyRate}/hr</span>
                         )}
-                        {contractor.contractorProfile?.rating > 0 && (
-                          <span>⭐ {contractor.contractorProfile.rating.toFixed(1)}</span>
+                        {(contractor.contractorProfile?.rating ?? 0) > 0 && (
+                          <span>⭐ {contractor.contractorProfile?.rating?.toFixed(1)}</span>
                         )}
                         <span>{contractor._count.assignedJobs} jobs</span>
                       </div>

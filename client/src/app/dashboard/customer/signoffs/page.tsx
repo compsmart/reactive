@@ -177,9 +177,9 @@ export default function CustomerSignoffsPage() {
                           <p className="font-medium">
                             {contractor.firstName} {contractor.lastName || contractor.email}
                           </p>
-                          {contractor.contractorProfile?.rating > 0 && (
+                          {(contractor.contractorProfile?.rating ?? 0) > 0 && (
                             <p className="text-sm text-yellow-600">
-                              ⭐ {contractor.contractorProfile.rating.toFixed(1)} rating
+                              ⭐ {contractor.contractorProfile?.rating?.toFixed(1)} rating
                             </p>
                           )}
                         </div>
