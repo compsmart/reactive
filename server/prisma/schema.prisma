@@ -1,0 +1,675 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+  SUBCONTRACTOR
+  CUST_RESIDENTIAL
+  CUST_COMMERCIAL
+}
+
+enum JobStatus {
+  DRAFT           // Commercial: waiting for quote
+  PENDING_QUOTE   // Commercial: quote sent, awaiting acceptance
+  OPEN            // Available for bidding/assignment
+  ASSIGNED        // Assigned but not scheduled
+  SCHEDULED       // Date confirmed
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum SubscriptionType {
+  MONTHLY
+  ANNUAL
+}
+
+enum TimeBlockReason {
+  HOLIDAY
+  SICK
+  APPOINTMENT
+  OTHER
+}
+
+enum ContractorPayType {
+  FIXED
+  HOURLY
+}
+
+enum PaymentType {
+  SUBSCRIPTION
+  JOB_UNLOCK
+  JOB_PAYMENT
+  REFUND
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum SignoffStatus {
+  PENDING
+  APPROVED
+  DISPUTED
+}
+
+enum ActivityType {
+  CONTRACTOR_AUTO_CREATED
+  CONTRACTOR_MATCHED
+  OUTREACH_EMAIL_SENT
+  OUTREACH_SMS_SENT
+  OUTREACH_EMAIL_OPENED
+  OUTREACH_LINK_CLICKED
+  JOB_VIEWED
+  JOB_UNLOCKED
+  QUOTE_SUBMITTED
+  CONTRACTOR_REGISTERED
+  CONTRACTOR_SUBSCRIBED
+  CONTRACTOR_UNSUBSCRIBED
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  email        String     @unique
+  passwordHash String
+  firstName    String?
+  lastName     String?
+  phone        String?
+  role         Role
+  status       UserStatus @default(PENDING)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Password reset
+  passwordResetToken   String?   @unique
+  passwordResetExpires DateTime?
+
+  // Approval workflow (for contractors)
+  approvedAt      DateTime?
+  approvedById    Int?
+  approvedBy      User?     @relation("ApprovedUsers", fields: [approvedById], references: [id])
+  rejectionReason String?
+
+  // Soft delete
+  deletedAt DateTime?
+
+  contractorProfile ContractorProfile?
+  customerProfile   CustomerProfile?
+  subscription      Subscription?
+  availability      Availability[]
+  timeBlocks        TimeBlock[]
+
+  assignedJobs    Assignment[]
+  bids            Bid[]
+  timesheets      Timesheet[]
+  jobsPosted      Job[]        @relation("CustomerJobs")
+  jobUnlocks      JobUnlock[]
+  payments        Payment[]
+  approvedOthers  User[]       @relation("ApprovedUsers")
+  reviewsGiven    Review[]     @relation("ReviewsGiven")
+  reviewsReceived Review[]     @relation("ReviewsReceived")
+  outreaches      ContractorOutreach[]
+  activities      ActivityLog[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model ContractorProfile {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills     String[]
+  latitude   Float?
+  longitude  Float?
+  hourlyRate Decimal? @db.Decimal(10, 2)
+  rating     Float    @default(0.0)
+  isVerified Boolean  @default(false)
+  bio        String?
+
+  // Enhanced business profile fields
+  slug            String?   @unique
+  businessName    String?
+  businessDesc    String?
+  coverPhoto      String?
+  logo            String?
+  website         String?
+  phone           String?
+  mobile          String?
+  yearsInBusiness Int?
+  callOutFee      Decimal?  @db.Decimal(10, 2)
+  travelRadius    Int?      // km
+  serviceAreas    String[]
+  portfolio       String[]  // Photo URLs
+  certifications  String[]
+  insuranceInfo   String?
+  isPublic        Boolean   @default(true)
+  profileComplete Boolean   @default(false)
+
+  // Company details
+  companyNumber String?
+  googleMapsUrl String?
+  postcode      String?
+
+  // Freemium tracking
+  freeQuotesUsed  Int @default(0)
+  freeUnlocksUsed Int @default(0)
+
+  // Communication preferences
+  emailOptOut Boolean @default(false)
+  smsOptOut   Boolean @default(false)
+
+  // Auto-creation tracking
+  sourceJobId Int?
+  autoCreated Boolean @default(false)
+
+  services ContractorService[]
+
+  @@index([latitude, longitude])
+  @@index([isVerified])
+  @@index([slug])
+  @@index([isPublic])
+  @@index([autoCreated])
+}
+
+// Scraped contractor listings (unverified, can be claimed by real contractors)
+model ScrapedContractor {
+  id              Int      @id @default(autoincrement())
+  slug            String   @unique
+  businessName    String
+  tradeName       String
+  tradeId         String
+  location        String
+  address         String?
+  postcode        String?
+  phone           String?
+  mobile          String?
+  email           String?
+  website         String?
+  logoUrl         String?
+  bio             String?
+  skills          String[]
+  certifications  String[]
+  yearsInBusiness Int?
+  
+  // Scraping metadata
+  source          String   @default("gemini-scraper")
+  scrapedAt       DateTime @default(now())
+  lastVerifiedAt  DateTime?
+  
+  // Status
+  isActive        Boolean  @default(true)
+  isClaimed       Boolean  @default(false)
+  claimedByUserId Int?
+  claimedAt       DateTime?
+  
+  // Computed/display fields
+  rating          Float    @default(0.0)
+  reviewCount     Int      @default(0)
+  
+  // Google Places API data
+  googleMapsUrl     String?
+  googleRating      Float?
+  googleReviewCount Int?
+  businessStatus    String?
+  photos            String[]
+  openingHours      String[]
+  
+  // AI enrichment fields (Gemini)
+  aiSummary         String?   // Gemini-generated business summary
+  aiPros            String[]  // AI-identified strengths
+  aiCons            String[]  // AI-identified concerns/weaknesses
+  aiFindings        String?   // Additional AI research findings
+  aiEnrichedAt      DateTime? // When AI enrichment was last done
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([location])
+  @@index([tradeId])
+  @@index([isActive])
+  @@index([isClaimed])
+  @@index([slug])
+  @@index([phone])
+  @@index([website])
+}
+
+// Scraper job tracking for safe stop/resume
+model ScraperJob {
+  id           Int      @id @default(autoincrement())
+  name         String   // e.g., "London Plumbers" or "Full UK Scrape"
+  status       String   @default("running") // running, paused, completed, failed
+  
+  // Configuration (stored as JSON strings)
+  locations    String[] // Which locations to scrape
+  trades       String[] // Which trade IDs to scrape
+  
+  // Progress tracking
+  totalSearches     Int @default(0)
+  completedSearches Int @default(0)
+  contractorsFound  Int @default(0)
+  errorsCount       Int @default(0)
+  
+  // Timestamps
+  startedAt    DateTime @default(now())
+  pausedAt     DateTime?
+  completedAt  DateTime?
+  
+  // Relationships
+  progress     ScraperProgress[]
+  
+  @@index([status])
+}
+
+// Tracks which location/trade combinations are complete
+model ScraperProgress {
+  id        Int      @id @default(autoincrement())
+  jobId     Int
+  job       ScraperJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  location  String
+  tradeId   String
+  tradeName String
+  
+  status    String   @default("pending") // pending, in_progress, completed, failed
+  found     Int      @default(0)
+  error     String?
+  
+  startedAt   DateTime?
+  completedAt DateTime?
+  
+  @@unique([jobId, location, tradeId])
+  @@index([jobId])
+  @@index([status])
+}
+
+model CustomerProfile {
+  id          Int     @id @default(autoincrement())
+  userId      Int     @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName String?
+  address     String?
+  billingInfo String?
+  type        String  // Residential or Commercial
+
+  // Commercial-specific fields
+  companyNumber   String?
+  industry        String?
+  companySize     String?   // SMALL, MEDIUM, LARGE, ENTERPRISE
+  logo            String?
+  primaryColor    String?
+  billingEmail    String?
+  vatNumber       String?
+  onboardingComplete Boolean @default(false)
+  
+  locations     CompanyLocation[]
+  companyUsers  CompanyUser[]
+}
+
+// Company locations for multi-site businesses
+model CompanyLocation {
+  id          Int             @id @default(autoincrement())
+  companyId   Int
+  company     CustomerProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String          // "Head Office", "Store #1"
+  address     String
+  city        String
+  postcode    String
+  phone       String?
+  email       String?
+  isPrimary   Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+
+  @@index([companyId])
+}
+
+// Team members for company accounts
+model CompanyUser {
+  id          Int             @id @default(autoincrement())
+  companyId   Int
+  company     CustomerProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  email       String
+  name        String
+  role        String          // ADMIN, MANAGER, VIEWER
+  phone       String?
+  department  String?
+  canApprove  Boolean         @default(false)
+  invitedAt   DateTime        @default(now())
+  acceptedAt  DateTime?
+
+  @@index([companyId])
+  @@index([email])
+}
+
+// Subscription for contractors (lead access)
+model Subscription {
+  id        Int              @id @default(autoincrement())
+  userId    Int              @unique
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      SubscriptionType
+  startDate DateTime         @default(now())
+  endDate   DateTime
+  active    Boolean          @default(true)
+  createdAt DateTime         @default(now())
+
+  // Stripe integration
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  stripePriceId        String?
+
+  @@index([active])
+  @@index([endDate])
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+}
+
+// Weekly availability schedule
+model Availability {
+  id        Int     @id @default(autoincrement())
+  userId    Int
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayOfWeek Int     // 0=Sunday, 6=Saturday
+  startTime String  // "09:00"
+  endTime   String  // "17:00"
+  isActive  Boolean @default(true)
+
+  @@unique([userId, dayOfWeek])
+  @@index([userId])
+}
+
+// Time blocks for holidays, sick days, appointments
+model TimeBlock {
+  id        Int             @id @default(autoincrement())
+  userId    Int
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime
+  reason    TimeBlockReason
+  notes     String?
+  createdAt DateTime        @default(now())
+
+  @@index([userId])
+  @@index([startDate, endDate])
+}
+
+model Job {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String
+  budget      Decimal?  @db.Decimal(10, 2) // Customer's budget (residential)
+  location    String?
+  latitude    Float?
+  longitude   Float?
+  status      JobStatus @default(OPEN)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Scheduling
+  scheduledDate   DateTime?
+  bookingDeadline DateTime? // 3 days from assignment for contractor to schedule
+
+  // Residential: Lead pricing
+  unlockFee Decimal? @db.Decimal(10, 2)
+
+  // Commercial: Quote system
+  quoteAmount   Decimal? @db.Decimal(10, 2)
+  quoteAccepted Boolean  @default(false)
+  quoteNotes    String?
+
+  // Contractor compensation
+  contractorPayType ContractorPayType?
+  contractorPayRate Decimal?           @db.Decimal(10, 2) // Fixed price or hourly rate
+
+  // Completion tracking
+  completedAt          DateTime?
+  completionNotes      String?
+  completionPhotos     String[]  // URLs to uploaded photos
+  contractorSignedOff  Boolean   @default(false)
+
+  customerId Int
+  customer   User @relation("CustomerJobs", fields: [customerId], references: [id], onDelete: Cascade)
+
+  assignments Assignment[]
+  bids        Bid[]
+  timesheets  Timesheet[]
+  unlocks     JobUnlock[]
+  payments    Payment[]
+  signoff     JobSignoff?
+  outreaches  ContractorOutreach[]
+  activities  ActivityLog[]
+
+  @@index([status])
+  @@index([customerId])
+  @@index([latitude, longitude])
+  @@index([createdAt])
+  @@index([scheduledDate])
+  @@index([bookingDeadline])
+}
+
+// Track which contractors have unlocked job contact details
+model JobUnlock {
+  id           Int      @id @default(autoincrement())
+  jobId        Int
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  contractorId Int
+  contractor   User     @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  paidAmount   Decimal  @db.Decimal(10, 2)
+  unlockedAt   DateTime @default(now())
+
+  @@unique([jobId, contractorId])
+  @@index([contractorId])
+}
+
+model Assignment {
+  id         Int      @id @default(autoincrement())
+  jobId      Int
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([jobId, userId])
+  @@index([userId])
+}
+
+model Bid {
+  id           Int      @id @default(autoincrement())
+  jobId        Int
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  contractorId Int
+  contractor   User     @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  amount       Decimal  @db.Decimal(10, 2)
+  notes        String?
+  accepted     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([jobId])
+  @@index([contractorId])
+}
+
+model Timesheet {
+  id           Int       @id @default(autoincrement())
+  jobId        Int
+  job          Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  contractorId Int
+  contractor   User      @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  startTime    DateTime
+  endTime      DateTime?
+  notes        String?
+  photos       String[]
+  createdAt    DateTime  @default(now())
+
+  @@index([jobId])
+  @@index([contractorId])
+}
+
+// Payment tracking
+model Payment {
+  id          Int           @id @default(autoincrement())
+  userId      Int
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Decimal       @db.Decimal(10, 2)
+  type        PaymentType
+  status      PaymentStatus @default(PENDING)
+  jobId       Int?
+  job         Job?          @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  description String?
+  reference   String?       // External payment reference
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Service categories for contractors
+model ServiceCategory {
+  id          Int                 @id @default(autoincrement())
+  name        String
+  slug        String              @unique
+  icon        String?
+  services    ContractorService[]
+
+  @@index([slug])
+}
+
+// Contractor's offered services with pricing
+model ContractorService {
+  id               Int               @id @default(autoincrement())
+  contractorId     Int
+  contractor       ContractorProfile @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  categoryId       Int?
+  category         ServiceCategory?  @relation(fields: [categoryId], references: [id])
+  serviceName      String
+  price            Decimal?          @db.Decimal(10, 2)
+  priceType        String?           // FIXED, HOURLY, QUOTE
+  description      String?
+
+  @@index([contractorId])
+}
+
+// Job sign-off by customer
+model JobSignoff {
+  id              Int           @id @default(autoincrement())
+  jobId           Int           @unique
+  job             Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  status          SignoffStatus @default(PENDING)
+  customerNotes   String?
+  signedAt        DateTime?
+  disputeReason   String?
+  disputedAt      DateTime?
+  resolvedAt      DateTime?
+  resolutionNotes String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([status])
+}
+
+// Reviews / Ratings
+model Review {
+  id           Int      @id @default(autoincrement())
+  jobId        Int
+  reviewerId   Int      // User who wrote the review
+  revieweeId   Int      // User being reviewed
+  rating       Int      // 1-5 stars
+  comment      String?
+  createdAt    DateTime @default(now())
+
+  reviewer User @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewee User @relation("ReviewsReceived", fields: [revieweeId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, reviewerId]) // One review per job per reviewer
+  @@index([revieweeId])
+  @@index([rating])
+}
+
+// System configuration
+model SystemConfig {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+}
+
+// Contractor outreach tracking
+model ContractorOutreach {
+  id               Int       @id @default(autoincrement())
+  contractorId     Int
+  contractor       User      @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  jobId            Int
+  job              Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  // Email tracking
+  emailSentAt      DateTime?
+  emailSubject     String?
+  emailContent     String?
+  emailOpened      Boolean   @default(false)
+  emailOpenedAt    DateTime?
+  
+  // SMS tracking
+  smsSentAt        DateTime?
+  smsContent       String?
+  
+  // Engagement tracking
+  linkClicked      Boolean   @default(false)
+  linkClickedAt    DateTime?
+  
+  // Unsubscribe
+  unsubscribeToken String    @unique @default(uuid())
+  unsubscribedAt   DateTime?
+  
+  createdAt        DateTime  @default(now())
+
+  @@unique([contractorId, jobId])
+  @@index([contractorId])
+  @@index([jobId])
+  @@index([unsubscribeToken])
+  @@index([createdAt])
+}
+
+// Activity log for comprehensive tracking
+model ActivityLog {
+  id           Int          @id @default(autoincrement())
+  type         ActivityType
+  userId       Int?
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  jobId        Int?
+  job          Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  
+  // Additional context
+  metadata     Json?        // Store extra details like matched contractor info, quote amount, etc.
+  ipAddress    String?
+  userAgent    String?
+  
+  createdAt    DateTime     @default(now())
+
+  @@index([type])
+  @@index([userId])
+  @@index([jobId])
+  @@index([createdAt])
+}
