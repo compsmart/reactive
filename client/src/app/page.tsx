@@ -69,7 +69,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-slate-900/85 to-[#E86A33]/20" />
         </div>
         
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20  w-full">
           <div className="max-w-4xl">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 mb-8 animate-fade-in">
@@ -454,7 +454,7 @@ export default function Home() {
                   </Button>
                 </Link>
                 <Link href="/contractors">
-                  <Button variant="outline" size="lg" className="h-14 px-8 text-lg border-white text-white hover:bg-white/10">
+                  <Button variant="outline-light" size="lg" className="h-14 px-8 text-lg">
                     Browse Directory
                   </Button>
                 </Link>
@@ -500,7 +500,7 @@ export default function Home() {
               </Button>
             </Link>
             <Link href="/contractors/join">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 h-14 px-8 text-lg">
+              <Button size="lg" variant="outline-light" className="h-14 px-8 text-lg">
                 Join as Contractor
               </Button>
             </Link>

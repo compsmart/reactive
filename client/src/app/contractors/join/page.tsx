@@ -119,7 +119,7 @@ export default function ContractorJoinPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-[#E86A33]/95 via-orange-600/90 to-amber-600/85" />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 w-full">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20  w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 mb-8">
