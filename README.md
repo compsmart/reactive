@@ -1,3 +1,7 @@
+AI Powered Tradesman Recommenation Engine - Demo.
+
+[CLICK HERE TO TRY IT!](https://reactive.compsmart.co.uk/residential/smart-search)
+
 # ConnectTeam Clone
 
 A comprehensive workforce management platform for managing direct employees, subcontractors, and customer jobs. Built with React (Next.js), Node.js, Express, and PostgreSQL.
